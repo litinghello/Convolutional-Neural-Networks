@@ -80,33 +80,33 @@ def train_crack_captcha_cnn():
     max_idx_l = tf.argmax(tf.reshape(Y, [-1, image_text_len, total_text_len]), 2)
     correct_pred = tf.equal(max_idx_p, max_idx_l)
     accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-
     Saver = tf.train.Saver()
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+    with tf.Session() as Session:
+        Session.run(tf.global_variables_initializer())
+        Saver.restore(Session, tf.train.latest_checkpoint("./model")) #加载旧模型
         step = 0
         while True:
             batch_x, batch_y = get_next_batch(rd=True,batch_size=128)
-            _, loss_ = sess.run([optimizer, loss], feed_dict={X: batch_x, Y: batch_y, keep_prob: 1})
+            _, loss_ = Session.run([optimizer, loss], feed_dict={X: batch_x, Y: batch_y, keep_prob: 1})
             print(step, loss_)
             if step % 100 == 0:
                 batch_x_test, batch_y_test = get_next_batch(rd=True,batch_size=100)
-                acc = sess.run(accuracy, feed_dict={X: batch_x_test, Y: batch_y_test, keep_prob: 1.})
+                acc = Session.run(accuracy, feed_dict={X: batch_x_test, Y: batch_y_test, keep_prob: 1.})
                 print("测试结果：error:%0.2f%%"%((1-acc)*100))
                 if (acc > 0.98) and (loss_ < 0.00001):
                 #if acc > 0.98:
-                    Saver.save(sess, "./model/crack_capcha.model", global_step=step)
+                    Saver.save(Session, "./model/crack_capcha.model", global_step=step)
                     break
             if step % 5001 == 0:#五千次保存一次模型
-                Saver.save(sess, "./model/crack_capcha.model", global_step=step)
+                Saver.save(Session, "./model/crack_capcha.model", global_step=step)
             step += 1
 def cnn_load_model():
     output = crack_captcha_cnn()
     Saver = tf.train.Saver()
-    session = tf.Session()
-    Saver.restore(session, tf.train.latest_checkpoint("./model"))
+    Session = tf.Session()
+    Saver.restore(Session, tf.train.latest_checkpoint("./model"))
     predict = tf.argmax(tf.reshape(output, [-1, image_text_len, total_text_len]), 2)
-    return session,predict
+    return Session,predict
 
 def cnn_crack_image(session,predict,image):
     text_list = session.run(predict, feed_dict={X: [image], keep_prob: 1})
