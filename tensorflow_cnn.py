@@ -20,13 +20,15 @@ X = tf.placeholder(tf.float32, [None, image_height*image_width])
 Y = tf.placeholder(tf.float32, [None, image_text_len*total_text_len])
 keep_prob = tf.placeholder(tf.float32)
 
-cnn_layer1_kernel = [3, 3, 1, 16]
+cnn_layer1_kernel = [2, 2, 1, 16]
 cnn_layer1_pool   = [1, 2, 2, 1]
-cnn_layer2_kernel = [3, 3, 16, 32]
+cnn_layer2_kernel = [2, 2, 16, 32]
 cnn_layer2_pool   = [1, 2, 2, 1]
-cnn_layer3_kernel = [3, 3, 32, 64]
+cnn_layer3_kernel = [2, 2, 32, 64]
 cnn_layer3_pool   = [1, 2, 2, 1]
-cnn_layer_full    = 4096
+cnn_layer4_kernel = [2, 2, 64, 128]
+cnn_layer4_pool   = [1, 2, 2, 1]
+cnn_layer_full    = 8192
 
 def crack_captcha_cnn(w_alpha=0.01, b_alpha=0.1):
     x = tf.reshape(X, shape=[-1, image_height, image_width, 1])
@@ -49,9 +51,16 @@ def crack_captcha_cnn(w_alpha=0.01, b_alpha=0.1):
     layer3 = tf.nn.dropout(pool3, keep_prob)
     layer3_size = int (layer3.shape[1]*layer3.shape[2]*layer3.shape[3])
 
-    w_d = tf.Variable(w_alpha*tf.random_normal([layer3_size, cnn_layer_full]))
+    w_c4 = tf.Variable(w_alpha*tf.random_normal(cnn_layer4_kernel))
+    b_c4 = tf.Variable(b_alpha*tf.random_normal([cnn_layer4_kernel[3]]))
+    conv4 = tf.nn.tanh(tf.nn.bias_add(tf.nn.conv2d(layer3, w_c4, strides=[1, 1, 1, 1], padding='SAME'), b_c4))
+    pool4 = tf.nn.avg_pool(conv4, ksize=cnn_layer4_pool, strides=[1, 2, 2, 1], padding='SAME')
+    layer4 = tf.nn.dropout(pool4, keep_prob)
+    layer4_size = int (layer4.shape[1]*layer4.shape[2]*layer4.shape[3])
+
+    w_d = tf.Variable(w_alpha*tf.random_normal([layer4_size, cnn_layer_full]))
     b_d = tf.Variable(b_alpha*tf.random_normal([cnn_layer_full]))
-    dense = tf.reshape(layer3, [-1, w_d.get_shape().as_list()[0]])
+    dense = tf.reshape(layer4, [-1, w_d.get_shape().as_list()[0]])
     dense = tf.nn.tanh(tf.add(tf.matmul(dense, w_d), b_d))
     dense = tf.nn.dropout(dense, keep_prob)
 
